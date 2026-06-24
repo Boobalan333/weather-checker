@@ -38,11 +38,15 @@ mcp = FastMCP("WeatherMind MCP Server")
 
 
 
+
+
+if not GROQ_KEY:
+    raise ValueError("GROQ_KEY is missing in environment variables")
+
 groq_client = OpenAI(
-    api_key=os.getenv("GROQ_KEY"),
+    api_key=GROQ_KEY,
     base_url="https://api.groq.com/openai/v1"
 )
-
 # ─────────────────────────────────────────────────────────────
 # REQUEST MODEL
 # ─────────────────────────────────────────────────────────────
