@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from mcp.server.fastmcp import FastMCP
 
+
 import httpx
 import os
 import uvicorn
@@ -163,8 +164,10 @@ Explain simply + give tip + emoji.
 # STATIC FILES
 # ─────────────────────────────
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
+
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
 # ─────────────────────────────
 # ROOT
 # ─────────────────────────────
