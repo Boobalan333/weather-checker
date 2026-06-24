@@ -9,6 +9,8 @@ from mcp.server.fastmcp import FastMCP
 import httpx
 import os
 import uvicorn
+OWM_KEY="1641613698e93ff0b66295c681e18210"
+GROQ_KEY="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"
 
 # ─────────────────────────────
 # LOAD ENV
