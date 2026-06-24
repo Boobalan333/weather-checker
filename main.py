@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -11,60 +10,64 @@ import httpx
 import os
 import uvicorn
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
 # LOAD ENV
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
 
 load_dotenv()
 
 OWM_KEY = os.getenv("OWM_KEY")
 GROQ_KEY = os.getenv("GROQ_KEY")
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
 # FASTAPI APP
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
 
 app = FastAPI(title="WeatherMind MCP AI")
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
 # MCP SERVER
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
 
 mcp = FastMCP("WeatherMind MCP Server")
 
-# ─────────────────────────────────────────────────────────────
-# GROQ CLIENT
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
+# SAFE VALIDATION (DON'T CRASH IMPORT)
+# ─────────────────────────────
 
+def require_env(var, name):
+    if not var:
+        raise RuntimeError(f"{name} is missing in environment variables")
 
+# ─────────────────────────────
+# GROQ CLIENT (SAFE INIT)
+# ─────────────────────────────
 
-
-
-if not GROQ_KEY:
-    raise ValueError("GROQ_KEY is missing in environment variables")
+require_env(GROQ_KEY, "GROQ_KEY")
 
 groq_client = OpenAI(
     api_key=GROQ_KEY,
     base_url="https://api.groq.com/openai/v1"
 )
-# ─────────────────────────────────────────────────────────────
+
+# ─────────────────────────────
 # REQUEST MODEL
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
 
 class WeatherRequest(BaseModel):
     place: str
 
-# ─────────────────────────────────────────────────────────────
-# MCP WEATHER TOOL
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
+# WEATHER TOOL
+# ─────────────────────────────
 
 @mcp.tool()
 async def get_weather(place: str):
 
+    if not OWM_KEY:
+        return {"error": "OWM_KEY missing"}
+
     try:
-
-        # STEP 1 → PLACE → LAT/LON
-
         geo_url = (
             f"https://api.openweathermap.org/geo/1.0/direct"
             f"?q={place}&limit=1&appid={OWM_KEY}"
@@ -75,21 +78,12 @@ async def get_weather(place: str):
 
         geo_data = geo_res.json()
 
-        print("Geo Data:", geo_data)
-
-        # PLACE NOT FOUND
-
         if not geo_data:
-            return {
-                "error": f"Place '{place}' not found"
-            }
+            return {"error": f"Place '{place}' not found"}
 
         location = geo_data[0]
 
-        lat = location["lat"]
-        lon = location["lon"]
-
-        # STEP 2 → WEATHER API
+        lat, lon = location["lat"], location["lon"]
 
         weather_url = (
             f"https://api.openweathermap.org/data/2.5/weather"
@@ -101,16 +95,8 @@ async def get_weather(place: str):
 
         weather_data = weather_res.json()
 
-        print("Weather Data:", weather_data)
-
-        # INVALID API KEY
-
         if str(weather_data.get("cod")) == "401":
-            return {
-                "error": "Invalid OpenWeather API Key"
-            }
-
-        # FINAL WEATHER DATA
+            return {"error": "Invalid OpenWeather API Key"}
 
         return {
             "place": location.get("name"),
@@ -122,110 +108,72 @@ async def get_weather(place: str):
         }
 
     except Exception as e:
+        return {"error": str(e)}
 
-        return {
-            "error": str(e)
-        }
-
-# ─────────────────────────────────────────────────────────────
-# WEATHER ROUTE
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
+# WEATHER API
+# ─────────────────────────────
 
 @app.post("/weather")
 async def weather_api(req: WeatherRequest):
+    return await get_weather(req.place)
 
-    weather = await get_weather(req.place)
-
-    return weather
-
-# ─────────────────────────────────────────────────────────────
-# AI ROUTE
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
+# AI API
+# ─────────────────────────────
 
 @app.post("/ai")
 async def ai_api(req: WeatherRequest):
 
-    # GET WEATHER USING MCP TOOL
-
     weather = await get_weather(req.place)
 
-    # IF ERROR
-
     if "error" in weather:
-        return {
-            "text": weather["error"]
-        }
-
-    # AI PROMPT
+        return {"text": weather["error"]}
 
     prompt = f"""
-    Weather Details:
+Weather Details:
 
-    Place: {weather['place']}
-    Country: {weather['country']}
-    Temperature: {weather['temperature']}°C
-    Humidity: {weather['humidity']}%
-    Condition: {weather['weather']}
-    Wind Speed: {weather['wind_speed']} m/s
+Place: {weather['place']}
+Country: {weather['country']}
+Temperature: {weather['temperature']}°C
+Humidity: {weather['humidity']}%
+Condition: {weather['weather']}
+Wind Speed: {weather['wind_speed']} m/s
 
-    Explain the weather in a friendly way.
-    Give one useful tip.
-    End with a weather emoji.
-    """
-
-    # GROQ AI CALL
+Explain simply + give tip + emoji.
+"""
 
     response = groq_client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are WeatherMind AI, "
-                    "a friendly weather assistant."
-                )
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
+            {"role": "system", "content": "You are WeatherMind AI assistant."},
+            {"role": "user", "content": prompt}
         ],
         max_tokens=180
     )
 
-    ai_text = response.choices[0].message.content
-
     return {
-        "text": ai_text,
+        "text": response.choices[0].message.content,
         "weather": weather
     }
 
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
 # STATIC FILES
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
 
-app.mount(
-    "/static",
-    StaticFiles(directory="static"),
-    name="static"
-)
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# ─────────────────────────────────────────────────────────────
-# ROOT ROUTE
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
+# ROOT
+# ─────────────────────────────
 
 @app.get("/")
 async def root():
     return FileResponse("static/index.html")
 
-# ─────────────────────────────────────────────────────────────
-# RUN SERVER
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────
+# LOCAL RUN ONLY
+# ─────────────────────────────
 
 if __name__ == "__main__":
-
-    uvicorn.run(
-        app,
-        host="127.0.0.1",
-        port=9001
-    )
+    uvicorn.run(app, host="0.0.0.0", port=9001)
