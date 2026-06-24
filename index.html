@@ -1,7 +1,659 @@
-fastapi
-uvicorn
-httpx
-python-dotenv
-openai
-mcp
-gunicorn
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WeatherMind AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f0f8ff;
+  --surface:#ffffff;
+  --border:#daeeff;
+  --text:#0c2340;
+  --textSub:#4a7fa5;
+  --textHint:#93bcd6;
+  --accent:#0ea5e9;
+  --accentDark:#0284c7;
+  --accentBg:#e0f2fe;
+  --outBubble:#e8f6ff;
+  --outText:#0c2340;
+  --green:#0891b2;
+  --greenBg:#e0f7fa;
+  --red:#ef4444;
+  --redBg:#fff1f2;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased}
+.app{display:flex;height:100vh}
+
+/* SIDEBAR */
+.sidebar{
+  width:280px;flex-shrink:0;
+  background:linear-gradient(180deg,#e0f2fe 0%,#f0f8ff 100%);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+}
+.sb-top{
+  padding:20px 20px 0;
+  position:sticky;top:0;background:linear-gradient(180deg,#e0f2fe,#e8f6ff);
+  border-bottom:1px solid var(--border);
+  padding-bottom:16px;z-index:1;
+}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.brand-icon{
+  width:40px;height:40px;border-radius:12px;
+  background:linear-gradient(135deg,#0ea5e9,#38bdf8,#7dd3fc);
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  flex-shrink:0;
+}
+.brand-name{font-size:17px;font-weight:700;letter-spacing:-0.4px}
+.brand-sub{font-size:11px;color:var(--textSub);margin-top:1px}
+.free-tag{
+  display:inline-block;margin-top:10px;
+  background:#e0f7fa;color:#0284c7;
+  border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;
+}
+.sb-section{padding:16px 20px;border-bottom:1px solid var(--border)}
+.sb-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--textHint);margin-bottom:12px}
+.step{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+.step-n{
+  width:22px;height:22px;border-radius:7px;flex-shrink:0;
+  background:#e0f2fe;color:#0284c7;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;
+}
+.step-title{font-size:12px;font-weight:600;color:var(--text);margin-bottom:1px}
+.step-desc{font-size:11px;color:var(--textSub);line-height:1.5}
+.flow{
+  display:flex;flex-direction:column;gap:3px;
+}
+.flow-item{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 10px;border-radius:9px;background:#e0f2fe;
+  font-size:11.5px;font-weight:500;color:#0c2340;
+}
+.flow-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.d-b{background:#0ea5e9}.d-p{background:#38bdf8}.d-o{background:#0284c7}.d-g{background:#06b6d4}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{
+  padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;
+  background:#e0f2fe;color:#0284c7;border:1px solid #bae6fd;
+}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+
+/* HEADER */
+.chat-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 18px;border-bottom:1px solid var(--border);
+  background:linear-gradient(90deg,#e0f2fe,#f0f8ff);flex-shrink:0;
+}
+.hdr-left{display:flex;align-items:center;gap:10px}
+.hdr-avatar{
+  width:38px;height:38px;border-radius:50%;
+  background:linear-gradient(135deg,#0ea5e9,#38bdf8,#7dd3fc);
+  display:flex;align-items:center;justify-content:center;font-size:17px;
+  flex-shrink:0;
+}
+.hdr-name{font-size:15px;font-weight:600;letter-spacing:-0.2px}
+.hdr-status{display:flex;align-items:center;gap:5px;font-size:12px;color:#0ea5e9;margin-top:1px;font-weight:500}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#0ea5e9;animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* MESSAGES */
+.messages{
+  flex:1;overflow-y:auto;
+  padding:16px 20px;
+  display:flex;flex-direction:column;gap:2px;
+  background:var(--bg);
+}
+.messages::-webkit-scrollbar{width:0}
+
+.msg-group{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+.msg-group.out{align-items:flex-end}
+.msg-group.in{align-items:flex-start}
+.group-row{display:flex;align-items:flex-end;gap:8px}
+.group-row.out{flex-direction:row-reverse}
+
+.g-avatar{
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,#0ea5e9,#38bdf8,#7dd3fc);
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+  align-self:flex-end;
+}
+.g-avatar.hidden{visibility:hidden}
+
+.bubble{
+  max-width:75%;padding:10px 16px;
+  font-size:14px;line-height:1.55;word-break:break-word;
+  position:relative;white-space:normal;
+}
+.bubble.in{
+  background:#ffffff;color:#0c2340;border:1px solid #daeeff;
+  border-radius:18px 18px 18px 4px;
+}
+.bubble.out{
+  background:linear-gradient(135deg,#0ea5e9,#38bdf8,#7dd3fc);
+  color:#fff;
+  border-radius:18px 18px 4px 18px;
+}
+.bubble.error-b{
+  background:#fff1f2;color:#b91c1c;border:1px solid #fecdd3;
+  border-radius:18px 18px 18px 4px;
+  font-size:13px;
+}
+
+@keyframes bubbleIn{
+  from{opacity:0;transform:scale(0.85) translateY(6px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
+@keyframes bubbleInLeft{
+  from{opacity:0;transform:scale(0.85) translateX(-8px)}
+  to{opacity:1;transform:scale(1) translateX(0)}
+}
+@keyframes bubbleInRight{
+  from{opacity:0;transform:scale(0.85) translateX(8px)}
+  to{opacity:1;transform:scale(1) translateX(0)}
+}
+.bubble.animate-in{animation:bubbleInLeft 0.25s cubic-bezier(0.34,1.4,0.64,1) forwards}
+.bubble.out.animate-in{animation:bubbleInRight 0.25s cubic-bezier(0.34,1.4,0.64,1) forwards}
+
+.msg-time{font-size:10px;color:var(--textHint);margin:2px 4px 0}
+
+/* WEATHER CARD */
+.w-card{
+  background:#fff;border-radius:14px;
+  border:1px solid #bae6fd;
+  overflow:hidden;margin-top:8px;
+  min-width:240px;max-width:320px;
+}
+.w-card-top{
+  padding:14px 16px 12px;
+  background:linear-gradient(135deg,#bae6fd44,#7dd3fc22);
+  border-bottom:1px solid var(--border);
+}
+.w-location{font-size:11px;font-weight:600;color:#0ea5e9;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px}
+.w-temp-row{display:flex;align-items:flex-end;gap:10px}
+.w-temp{font-size:48px;font-weight:700;line-height:1;color:var(--text);letter-spacing:-2px}
+.w-temp-unit{font-size:20px;color:var(--textSub);margin-bottom:8px}
+.w-right{flex:1}
+.w-emoji{font-size:26px;margin-bottom:2px}
+.w-cond{font-size:13px;font-weight:600;color:#0284c7}
+.w-feels{font-size:11px;color:var(--textSub);margin-top:2px}
+.w-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#daeeff}
+.w-stat{background:#f0f8ff;padding:10px 14px}
+.w-stat-icon{font-size:16px;margin-bottom:3px}
+.w-stat-label{font-size:10px;font-weight:600;color:var(--textHint);text-transform:uppercase;letter-spacing:0.06em}
+.w-stat-val{font-size:16px;font-weight:700;color:#0c2340;margin-top:1px}
+.w-ai-comment{
+  padding:12px 14px;font-size:12.5px;color:#4a7fa5;
+  line-height:1.65;border-top:1px solid var(--border);
+  background:var(--surface);
+}
+
+/* Typing indicator */
+.typing-wrap{display:flex;align-items:flex-end;gap:8px;margin-bottom:10px;animation:bubbleInLeft 0.2s ease}
+.typing-bub{
+  background:#ffffff;border-radius:18px 18px 18px 4px;border:1px solid #daeeff;
+  padding:13px 16px;display:flex;gap:4px;align-items:center;
+}
+.td{width:7px;height:7px;border-radius:50%;background:#7dd3fc;animation:td 1.2s infinite}
+.td:nth-child(2){animation-delay:.15s}.td:nth-child(3){animation-delay:.3s}
+@keyframes td{0%,60%,100%{transform:translateY(0);opacity:0.4}30%{transform:translateY(-5px);opacity:1;background:#0ea5e9}}
+
+/* SUGGESTIONS */
+.sugg-wrap{
+  padding:8px 20px 6px;
+  display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0;
+  background:#e8f6ff;
+}
+.sugg{
+  background:#fff;border:1.5px solid #bae6fd;border-radius:20px;
+  padding:6px 14px;font-size:12.5px;font-weight:500;color:var(--textSub);
+  cursor:pointer;transition:all 0.15s;font-family:'Inter',sans-serif;
+  white-space:nowrap;
+}
+.sugg:hover{border-color:#0ea5e9;color:#0284c7;background:#e0f2fe;}
+.sugg:active{transform:scale(0.96)}
+
+/* INPUT */
+.input-area{
+  padding:10px 16px 14px;border-top:1px solid var(--border);
+  background:#e8f6ff;flex-shrink:0;
+}
+.input-row{
+  display:flex;align-items:center;gap:8px;
+  background:#fff;border:1.5px solid var(--border);
+  border-radius:24px;padding:6px 6px 6px 16px;
+  transition:border-color 0.2s;
+}
+.input-row:focus-within{border-color:#b2b2b2}
+.input-row input{
+  flex:1;background:none;border:none;outline:none;
+  font-family:'Inter',sans-serif;font-size:14px;color:var(--text);min-width:0;
+}
+.input-row input::placeholder{color:var(--textHint)}
+.send-btn{
+  width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;
+  background:linear-gradient(135deg,#0ea5e9,#38bdf8,#7dd3fc);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform 0.15s,opacity 0.15s;flex-shrink:0;
+}
+.send-btn:hover:not(:disabled){transform:scale(1.08)}
+.send-btn:active:not(:disabled){transform:scale(0.95)}
+.send-btn:disabled{opacity:0.35;cursor:not-allowed}
+.send-btn svg{width:16px;height:16px;fill:white;margin-left:2px}
+
+/* Welcome bubble */
+.welcome-label{
+  text-align:center;font-size:11px;color:#93bcd6;margin-bottom:12px;
+  font-weight:500;
+}
+
+/* Server config banner */
+.server-banner{
+  display:none;
+  background:#fff1f2;border-bottom:1px solid #fecdd3;
+  padding:8px 18px;font-size:12px;color:#b91c1c;font-weight:500;flex-shrink:0;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-top">
+      <div class="brand">
+        <div class="brand-icon">🌦️</div>
+        <div>
+          <div class="brand-name">WeatherMind AI</div>
+          <div class="brand-sub">FastAPI + OpenWeatherMap</div>
+        </div>
+      </div>
+      <div class="free-tag">✅ 100% Free</div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-label">How it works</div>
+      <div class="step">
+        <div class="step-n">1</div>
+        <div><div class="step-title">Ask anything</div><div class="step-desc">Type a city name or ask in any way — Tamil, English, anything</div></div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div><div class="step-title">AI extracts city</div><div class="step-desc">Groq AI reads your message and pulls out the city name</div></div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div><div class="step-title">Live weather fetch</div><div class="step-desc">Real-time data from OpenWeatherMap via FastAPI</div></div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div><div class="step-title">Smart explanation</div><div class="step-desc">AI gives a friendly summary with a helpful tip</div></div>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-label">Data Flow</div>
+      <div class="flow">
+        <div class="flow-item"><div class="flow-dot d-b"></div> You type a message</div>
+        <div class="flow-item"><div class="flow-dot d-p"></div> Browser → FastAPI</div>
+        <div class="flow-item"><div class="flow-dot d-o"></div> FastAPI → OpenWeatherMap</div>
+        <div class="flow-item"><div class="flow-dot d-g"></div> FastAPI → Groq AI tip</div>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <div class="sb-label">Tech Stack</div>
+      <div class="chips">
+        <span class="chip">FastAPI</span>
+        <span class="chip">Groq Free</span>
+        <span class="chip">Llama 3.3</span>
+        <span class="chip">OpenWeatherMap</span>
+        <span class="chip">Zero Cost</span>
+        <span class="chip">Tamil NLP</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CHAT -->
+  <div class="main">
+
+    <div class="server-banner" id="serverBanner">
+      ⚠️ OWM_KEY not set in server .env — weather fetch will fail.
+    </div>
+
+    <div class="chat-header">
+      <div class="hdr-left">
+        <div class="hdr-avatar">🌍</div>
+        <div>
+          <div class="hdr-name">WeatherMind AI</div>
+          <div class="hdr-status"><div class="status-dot"></div> Active now</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="welcome-label">Today</div>
+
+      <div class="msg-group in">
+        <div class="group-row in">
+          <div class="g-avatar">🤖</div>
+          <div class="bubble in animate-in">
+            Hey! 👋 I'm <strong>WeatherMind AI</strong> — your weather assistant.<br><br>
+            Just type a city name or ask naturally:<br>
+            💬 <em>"What's the weather in Tokyo?"</em><br>
+            💬 <em>"Chennai weather today?"</em><br>
+            💬 <em>"Will it rain in Mumbai?"</em><br><br>
+            I'll show you live weather + smart tips! 🌤️
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sugg-wrap" id="suggWrap">
+      <button class="sugg" onclick="qs('Chennai')">🌆 Chennai</button>
+      <button class="sugg" onclick="qs('Mumbai')">🏙️ Mumbai</button>
+      <button class="sugg" onclick="qs('Delhi')">🕌 Delhi</button>
+      <button class="sugg" onclick="qs('Bangalore')">🌿 Bangalore</button>
+      <button class="sugg" onclick="qs('Tokyo')">🗼 Tokyo</button>
+      <button class="sugg" onclick="qs('London')">🌂 London</button>
+      <button class="sugg" onclick="qs('New York')">🗽 NY</button>
+      <button class="sugg" onclick="qs('Dubai')">🏜️ Dubai</button>
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <input id="inp" type="text" placeholder="Type a city or ask anything..." autocomplete="off"/>
+        <button class="send-btn" id="sendBtn" onclick="send()">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+
+const inp = document.getElementById("inp");
+const messages = document.getElementById("messages");
+const sendBtn = document.getElementById("sendBtn");
+
+inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") send();
+});
+
+function qs(city) {
+    inp.value = city;
+    send();
+}
+
+function addUserMessage(text) {
+
+    const group = document.createElement("div");
+    group.className = "msg-group out";
+
+    group.innerHTML = `
+        <div class="group-row out">
+            <div class="g-avatar hidden"></div>
+            <div class="bubble out animate-in">
+                ${text}
+            </div>
+        </div>
+    `;
+
+    messages.appendChild(group);
+
+    scrollBottom();
+}
+
+function addBotMessage(html) {
+
+    const group = document.createElement("div");
+    group.className = "msg-group in";
+
+    group.innerHTML = `
+        <div class="group-row in">
+            <div class="g-avatar">🤖</div>
+            <div class="bubble in animate-in">
+                ${html}
+            </div>
+        </div>
+    `;
+
+    messages.appendChild(group);
+
+    scrollBottom();
+}
+
+function addErrorMessage(text) {
+
+    const group = document.createElement("div");
+    group.className = "msg-group in";
+
+    group.innerHTML = `
+        <div class="group-row in">
+            <div class="g-avatar">⚠️</div>
+            <div class="bubble error-b animate-in">
+                ${text}
+            </div>
+        </div>
+    `;
+
+    messages.appendChild(group);
+
+    scrollBottom();
+}
+
+function addTyping() {
+
+    const div = document.createElement("div");
+
+    div.className = "typing-wrap";
+
+    div.id = "typing";
+
+    div.innerHTML = `
+        <div class="g-avatar">🤖</div>
+        <div class="typing-bub">
+            <div class="td"></div>
+            <div class="td"></div>
+            <div class="td"></div>
+        </div>
+    `;
+
+    messages.appendChild(div);
+
+    scrollBottom();
+}
+
+function removeTyping() {
+
+    const t = document.getElementById("typing");
+
+    if (t) t.remove();
+}
+
+function scrollBottom() {
+
+    messages.scrollTop = messages.scrollHeight;
+}
+
+function weatherEmoji(condition) {
+
+    condition = condition.toLowerCase();
+
+    if (condition.includes("cloud")) return "☁️";
+    if (condition.includes("rain")) return "🌧️";
+    if (condition.includes("storm")) return "⛈️";
+    if (condition.includes("snow")) return "❄️";
+    if (condition.includes("mist")) return "🌫️";
+    if (condition.includes("clear")) return "☀️";
+
+    return "🌤️";
+}
+
+function weatherCard(weather, aiText) {
+
+    const emoji = weatherEmoji(weather.weather);
+
+    return `
+        <div class="w-card">
+
+            <div class="w-card-top">
+
+                <div class="w-location">
+                    ${weather.place}, ${weather.country}
+                </div>
+
+                <div class="w-temp-row">
+
+                    <div>
+                        <div class="w-temp">
+                            ${Math.round(weather.temperature)}
+                        </div>
+                    </div>
+
+                    <div class="w-temp-unit">
+                        °C
+                    </div>
+
+                    <div class="w-right">
+
+                        <div class="w-emoji">
+                            ${emoji}
+                        </div>
+
+                        <div class="w-cond">
+                            ${weather.weather}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="w-stats-grid">
+
+                <div class="w-stat">
+                    <div class="w-stat-icon">💧</div>
+                    <div class="w-stat-label">Humidity</div>
+                    <div class="w-stat-val">
+                        ${weather.humidity}%
+                    </div>
+                </div>
+
+                <div class="w-stat">
+                    <div class="w-stat-icon">🌬️</div>
+                    <div class="w-stat-label">Wind</div>
+                    <div class="w-stat-val">
+                        ${weather.wind_speed} m/s
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="w-ai-comment">
+                ${aiText}
+            </div>
+
+        </div>
+    `;
+}
+
+async function send() {
+
+    const text = inp.value.trim();
+
+    if (!text) return;
+
+    addUserMessage(text);
+
+    inp.value = "";
+
+    sendBtn.disabled = true;
+
+    addTyping();
+
+    try {
+
+        // WEATHER API
+
+        const weatherRes = await fetch("/weather", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                place: text
+            })
+        });
+
+        const weather = await weatherRes.json();
+
+        console.log(weather);
+
+        removeTyping();
+
+        // ERROR
+
+        if (weather.error) {
+
+            addErrorMessage(weather.error);
+
+            sendBtn.disabled = false;
+
+            return;
+        }
+
+        // AI API
+
+        const aiRes = await fetch("/ai", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify(weather)
+        });
+
+        const aiData = await aiRes.json();
+
+        // SHOW WEATHER CARD
+
+        addBotMessage(
+            weatherCard(weather, aiData.text)
+        );
+    }
+
+    catch (err) {
+
+        console.error(err);
+
+        removeTyping();
+
+        addErrorMessage(
+            "Server error. Please check FastAPI backend."
+        );
+    }
+
+    finally {
+
+        sendBtn.disabled = false;
+    }
+}
+
+</script></body>
+</html>
