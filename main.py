@@ -172,9 +172,11 @@ if os.path.exists("static"):
 # ROOT
 # ─────────────────────────────
 
+
+
 @app.get("/")
-async def root():
-    return FileResponse("static/index.html")
+def home():
+    return FileResponse("index.html")
 
 # ─────────────────────────────
 # LOCAL RUN ONLY
