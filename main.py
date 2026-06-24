@@ -37,7 +37,7 @@ mcp = FastMCP("WeatherMind MCP Server")
 # ─────────────────────────────────────────────────────────────
 
 groq_client = OpenAI(
-    api_key=GROQ_KEY,
+    api_key=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,
     base_url="https://api.groq.com/openai/v1"
 )
 
